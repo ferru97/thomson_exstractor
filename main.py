@@ -24,7 +24,7 @@ def isPersonName(name):
 def getIndex(content):
     index = []
     regex = r'<A href=".*">\d+ - \d+</a>'
-    links = re.findall(regex, content)  
+    links = re.findall(regex, content) 
 
     for l in links:
         temp = re.sub(r'<A href=".*">', '', l)
@@ -53,7 +53,31 @@ def getName(page):
     return date, name
 
 
-def getContent(start, end, speech):
+def haveTitle(s):
+    soup = BeautifulSoup(s, 'html.parser')
+    txt = soup.text.strip()
+    uppers = sum(1 for c in txt if c.isupper())
+    upper_prc = (100/len(txt.replace(" ",'')))*uppers
+    
+    return upper_prc>30
+
+
+def getNameAndPosition(line):
+    soup = BeautifulSoup(line, 'html.parser')
+    line = soup.text.strip()
+    line = line.split('-')
+    if len(line)>1:
+        return line[0].strip(), line[1].strip()
+    else:
+        return line[0].strip(), "NA!"
+
+def getText(speech):
+    soup = BeautifulSoup(speech, 'html.parser')
+    speech = soup.text
+    return speech.replace('\n'," ").strip()
+
+
+def getSpeeches(speech):
     def removeDuplicate(l):
         newSpeackers = []
         dict_ = {}
@@ -75,45 +99,91 @@ def getContent(start, end, speech):
     
     speackers = removeDuplicate(speackers)
     speackers.sort(key = lambda x: x[1])
-    #continue
+    
+    result = []
+    i = 0
+    while i < len(speackers):
+        speech_start = (speackers[i])[1]
+        if i<len(speackers)-1:
+            speech_end =  (speackers[i+1])[1]
+        else:
+            speech_end =  len(speech)
+        
+        temp = speech[speech_start:speech_end]
+        temp = re.sub(r'<A name=.*<br>', '',  temp) #remove header
+        temp = re.sub(r'\d+<br>\nTHOMSON(.|\n)+<i>\d+</i><br>', '',  temp) #remove footer
+        rows = temp.split('\n')
+        if len(rows)>1 and len(rows[1])>5 and not haveTitle(rows[1]):
+            name, position = getNameAndPosition(rows[0])
+            text = getText(" ".join(rows[1:]))
+            result.append([name,position,text])
+        i = i + 1
+        
+    return result
 
 
 def analyzeFile(content, df):
+    def saveSpeeches(speeches, type):
+        if tp == 0:
+            isPresentation = True
+            isQeA = False
+        else:
+            isPresentation = False
+            isQeA = True
+
+        for s in speeches:
+            new_row = len(df.index)
+            df.loc[new_row,"RPT"] = rpt.replace("Rpt. ",'')
+            df.loc[new_row,"Date"] = date
+            df.loc[new_row,"Name"] = name
+            df.loc[new_row,"Speacker"] = s[0]
+            df.loc[new_row,"Role"] = s[1]
+            df.loc[new_row,"Content"] = s[2]
+            df.loc[new_row,"Is Q&A"] = isQeA
+            df.loc[new_row,"Is Presentation"] = isPresentation
+
     index = getIndex(content)
+    rpts = re.findall(r'Rpt\. \d+', content)
     
     content = content.split("<hr>") 
     content = removeDisclaimer(content)
 
-    for i in index:
-        new_row = len(df.index)
+    for i,rpt in zip(index,rpts):
         date, name = getName(content[i[0]+1])
-
         speech = " ".join(content[i[0]:i[1]])
 
         start_presentation = speech.find("<b>P R E S E N T A T I O N</b>")
         start_qa = speech.find("<b>Q U E S T I O N S   A N D   A N S W E R S</b>")
-
-        speech = speech.replace('<b>P R E S E N T A T I O N</b>', '')
-        speech = speech.replace('<b>Q U E S T I O N S   A N D   A N S W E R S</b>', '')
-        #speech = speech.replace('\n', ' ')
-
-        end_presentation = len(speech)
         end_qa = len(speech) 
         if start_qa>start_presentation:
             end_presentation = start_qa-1
-        
-        if(start_presentation>0):
-            getContent(start_presentation,end_presentation,str(speech))
+        else:
+            end_presentation = len(speech)
 
-        df.loc[new_row,"Date"] = date
-        df.loc[new_row,"Name"] = name
+        if start_presentation > 0:
+            presentation = speech[start_presentation:end_presentation]
+        else:
+            presentation = None
 
-    #soup = BeautifulSoup(content, 'html.parser')
+        if start_qa > 0:
+            qa = speech[start_qa:end_qa]
+        else:
+            qa = None
 
-
+        tp = 0
+        for part in [presentation,qa]:
+            if part==None:
+                continue
+            part = part.replace('<b>P R E S E N T A T I O N</b>', '')
+            part = part.replace('<b>Q U E S T I O N S   A N D   A N S W E R S</b>', '')
+            speeches = getSpeeches(part)
+            saveSpeeches(speeches,tp)
+            tp += 1
+            
+    return df
 
 if __name__ == "__main__":
-    df = pd.DataFrame(columns=["RPT","Date","Name","Is Presentation","Is Q&A","Content"])
+    df = pd.DataFrame(columns=["RPT","Date","Name","Speacker","Role","Content","Is Q&A","Is Presentation"])
 
     for (dirpath, dirnames, filenames) in walk(imput_folder):
         for file in filenames:
@@ -121,6 +191,6 @@ if __name__ == "__main__":
                 file_path = path.join(dirpath,file)
                 with open(file_path, 'r', encoding="utf8", errors='ignore') as f:
                     content = f.read()
-                analyzeFile(content,df)
+                df = analyzeFile(content,df)
 
-    df.to_csv("results.csv")
+    df.to_csv("results.csv",encoding='utf-8-sig')
