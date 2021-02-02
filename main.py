@@ -4,6 +4,7 @@ import pandas as pd
 import re
 
 imput_folder = "input/"
+out_folder = "results/"
 
 def isPersonName(name):
     soup = BeautifulSoup(name, 'html.parser')
@@ -32,12 +33,16 @@ def getIndex(content):
         temp = temp.split('-')
         index.append( (int(temp[0].strip()),int(temp[1].strip())-1) )
 
-    return index
+    if len(index)>0:
+        return index
+    else: 
+        return [(0,len(content))]
 
 def removeDisclaimer(pages):
     c = 0
     while(c<len(pages)):
          pages[c] = re.sub(r'<b>D I S C L A I M E R<\/b>(.|\n)*', '',  pages[c])
+         pages[c] = re.sub(r'<A name="outline"></a><h1>Document Outline</h1>(.|\n)*</HTML>','',pages[c])
          c += 1
     return pages
 
@@ -69,7 +74,7 @@ def getNameAndPosition(line):
     if len(line)>1:
         return line[0].strip(), line[1].strip()
     else:
-        return line[0].strip(), "NA!"
+        return line[0].strip(), "NA"
 
 def getText(speech):
     soup = BeautifulSoup(speech, 'html.parser')
@@ -112,6 +117,7 @@ def getSpeeches(speech):
         temp = speech[speech_start:speech_end]
         temp = re.sub(r'<A name=.*<br>', '',  temp) #remove header
         temp = re.sub(r'\d+<br>\nTHOMSON(.|\n)+<i>\d+</i><br>', '',  temp) #remove footer
+        temp = re.sub(r'\d+<br>\n(<A.*>)?THOMSON(.|\n)+<hr>', '',  temp)
         rows = temp.split('\n')
         if len(rows)>1 and len(rows[1])>5 and not haveTitle(rows[1]):
             name, position = getNameAndPosition(rows[0])
@@ -123,7 +129,7 @@ def getSpeeches(speech):
 
 
 def analyzeFile(content, df):
-    def saveSpeeches(speeches, type):
+    def saveSpeeches(speeches, type,date,name):
         if tp == 0:
             isPresentation = True
             isQeA = False
@@ -138,12 +144,15 @@ def analyzeFile(content, df):
             df.loc[new_row,"Name"] = name
             df.loc[new_row,"Speacker"] = s[0]
             df.loc[new_row,"Role"] = s[1]
-            df.loc[new_row,"Content"] = s[2]
             df.loc[new_row,"Is Q&A"] = isQeA
             df.loc[new_row,"Is Presentation"] = isPresentation
+            df.loc[new_row,"Content"] = s[2]
 
     index = getIndex(content)
-    rpts = re.findall(r'Rpt\. \d+', content)
+    if len(index) == 1:
+        rpts = ["NA"]
+    else:
+        rpts = re.findall(r'Rpt\. \d+', content)     
     
     content = content.split("<hr>") 
     content = removeDisclaimer(content)
@@ -177,20 +186,21 @@ def analyzeFile(content, df):
             part = part.replace('<b>P R E S E N T A T I O N</b>', '')
             part = part.replace('<b>Q U E S T I O N S   A N D   A N S W E R S</b>', '')
             speeches = getSpeeches(part)
-            saveSpeeches(speeches,tp)
+            saveSpeeches(speeches,tp,date,name)
             tp += 1
             
     return df
 
 if __name__ == "__main__":
-    df = pd.DataFrame(columns=["RPT","Date","Name","Speacker","Role","Content","Is Q&A","Is Presentation"])
-
+    count = 1
     for (dirpath, dirnames, filenames) in walk(imput_folder):
         for file in filenames:
             if "s.html" in file:
+                print("{} - {}".format(str(count),file))
+                df = pd.DataFrame(columns=["RPT","Date","Name","Speacker","Role","Is Q&A","Is Presentation","Content"])
                 file_path = path.join(dirpath,file)
                 with open(file_path, 'r', encoding="utf8", errors='ignore') as f:
                     content = f.read()
                 df = analyzeFile(content,df)
-
-    df.to_csv("results.csv",encoding='utf-8-sig')
+                df.to_csv(out_folder+file+".csv",encoding='utf-8-sig')
+                count += 1
