@@ -38,11 +38,12 @@ def getIndex(content):
     else: 
         return [(0,len(content))]
 
+
 def removeDisclaimer(pages):
     c = 0
     while(c<len(pages)):
          pages[c] = re.sub(r'<b>D I S C L A I M E R<\/b>(.|\n)*', '',  pages[c])
-         pages[c] = re.sub(r'<A name="outline"></a><h1>Document Outline</h1>(.|\n)*</HTML>','',pages[c])
+         pages[c] = re.sub(r'<A name="outline"></a><h1>Document Outline</h1>(.|\n)*</ul>','',pages[c])
          c += 1
     return pages
 
@@ -71,10 +72,19 @@ def getNameAndPosition(line):
     soup = BeautifulSoup(line, 'html.parser')
     line = soup.text.strip()
     line = line.split('-')
+    
+    name = line[0].strip()
+
+    provenance = "NA"
     if len(line)>1:
-        return line[0].strip(), line[1].strip()
-    else:
-        return line[0].strip(), "NA"
+        provenance = line[1].strip()
+
+    role = "NA"
+    if len(line)>2:
+        role = line[2].strip()
+
+    return name, provenance, role
+    
 
 def getText(speech):
     soup = BeautifulSoup(speech, 'html.parser')
@@ -117,12 +127,13 @@ def getSpeeches(speech):
         temp = speech[speech_start:speech_end]
         temp = re.sub(r'<A name=.*<br>', '',  temp) #remove header
         temp = re.sub(r'\d+<br>\nTHOMSON(.|\n)+<i>\d+</i><br>', '',  temp) #remove footer
-        temp = re.sub(r'\d+<br>\n(<A.*>)?THOMSON(.|\n)+<hr>', '',  temp)
+        temp = re.sub(r'\d+<br>\n(<A.*>)?THOMSON(.|\n)+companies.<br>', '',  temp) #remove footer v2
+        
         rows = temp.split('\n')
         if len(rows)>1 and len(rows[1])>5 and not haveTitle(rows[1]):
-            name, position = getNameAndPosition(rows[0])
+            name, provenance, role = getNameAndPosition(rows[0])
             text = getText(" ".join(rows[1:]))
-            result.append([name,position,text])
+            result.append([name,provenance,role,text])
         i = i + 1
         
     return result
@@ -141,12 +152,13 @@ def analyzeFile(content, df):
             new_row = len(df.index)
             df.loc[new_row,"RPT"] = rpt.replace("Rpt. ",'')
             df.loc[new_row,"Date"] = date
-            df.loc[new_row,"Name"] = name
+            df.loc[new_row,"Title"] = name
             df.loc[new_row,"Speacker"] = s[0]
-            df.loc[new_row,"Role"] = s[1]
+            df.loc[new_row,"Provenance"] = s[1]
+            df.loc[new_row,"Role"] = s[2]
             df.loc[new_row,"Is Q&A"] = isQeA
             df.loc[new_row,"Is Presentation"] = isPresentation
-            df.loc[new_row,"Content"] = s[2]
+            df.loc[new_row,"Content"] = s[3]
 
     index = getIndex(content)
     if len(index) == 1:
@@ -197,7 +209,7 @@ if __name__ == "__main__":
         for file in filenames:
             if "s.html" in file:
                 print("{} - {}".format(str(count),file))
-                df = pd.DataFrame(columns=["RPT","Date","Name","Speacker","Role","Is Q&A","Is Presentation","Content"])
+                df = pd.DataFrame(columns=["RPT","Date","Title","Speacker","Provenance","Role","Is Q&A","Is Presentation","Content"])
                 file_path = path.join(dirpath,file)
                 with open(file_path, 'r', encoding="utf8", errors='ignore') as f:
                     content = f.read()
