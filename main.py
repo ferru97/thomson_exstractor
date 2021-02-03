@@ -214,5 +214,5 @@ if __name__ == "__main__":
                 with open(file_path, 'r', encoding="utf8", errors='ignore') as f:
                     content = f.read()
                 df = analyzeFile(content,df)
-                df.to_csv(out_folder+file+".csv",encoding='utf-8-sig')
+                df.to_csv(out_folder+file.replace("s.html",'')+".csv",encoding='utf-8-sig')
                 count += 1
