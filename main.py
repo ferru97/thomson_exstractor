@@ -2,9 +2,24 @@ from os import walk, path
 from bs4 import BeautifulSoup
 import pandas as pd
 import re
+import os
 
 imput_folder = "input/"
 out_folder = "results/"
+
+MonthDict={ "january":1,
+            "february":2,
+            "march":3,
+            "april":4,
+            "may":5,
+            "june":6,
+            "july":7,
+            "august":8,
+            "september":9,
+            "october":10,
+            "november":11,
+            "december":12
+}
 
 def isPersonName(name):
     soup = BeautifulSoup(name, 'html.parser')
@@ -53,7 +68,7 @@ def getName(page):
     title = soup.text
 
     title = title.split('-')
-    date = (title[0].split('/'))[0].strip()
+    date = title[0].strip()
     name = title[1].strip()
 
     return date, name
@@ -139,8 +154,37 @@ def getSpeeches(speech):
     return result
 
 
-def analyzeFile(content, df):
-    def saveSpeeches(speeches, type,date,name):
+def genFileName(location,name):
+    name = name.replace('/','')
+    out = location+"/"+name
+    n = 1
+    while path.exists(out):
+       n += 1
+       out = location+"/("+str(n)+')'+name
+    return out
+
+def analyzeFile(content, folder):
+    def saveSpeeches(speeches, type,date,name,company):
+        date = date.split('/')
+        day = date[0]
+
+        try:
+            temp = day.replace(',','').split(" ")
+            m = str(MonthDict[temp[0].lower()])
+            d = temp[1]
+            y = temp[2]
+            if len(m)==1:
+                m = '0'+m
+            if len(d)==1:
+                d = '0'+d
+            day = m+"/"+d+"/"+y
+        except:
+            pass
+
+        time = "NA"
+        if len(date)>1:
+            time = date[1]
+
         if tp == 0:
             isPresentation = True
             isQeA = False
@@ -151,7 +195,9 @@ def analyzeFile(content, df):
         for s in speeches:
             new_row = len(df.index)
             df.loc[new_row,"RPT"] = rpt.replace("Rpt. ",'')
-            df.loc[new_row,"Date"] = date
+            df.loc[new_row,"Company"] = company
+            df.loc[new_row,"Date"] = day
+            df.loc[new_row,"Time"] = time
             df.loc[new_row,"Title"] = name
             df.loc[new_row,"Speacker"] = s[0]
             df.loc[new_row,"Provenance"] = s[1]
@@ -163,13 +209,17 @@ def analyzeFile(content, df):
     index = getIndex(content)
     if len(index) == 1:
         rpts = ["NA"]
+        companies = ["NA"]
     else:
         rpts = re.findall(r'Rpt\. \d+', content)     
+        companies = re.findall(r'<A href=".*"><b>.*</b></a><br>', content)
+        companies = [re.sub(r'(<A.*<b>)|(</b></a><br>)','',e) for e in companies]    
     
     content = content.split("<hr>") 
     content = removeDisclaimer(content)
 
-    for i,rpt in zip(index,rpts):
+    for i,rpt,comp in zip(index,rpts,companies):
+        df = pd.DataFrame(columns=["RPT","Company","Date","Time","Title","Speacker","Provenance","Role","Is Q&A","Is Presentation","Content"])
         date, name = getName(content[i[0]+1])
         speech = " ".join(content[i[0]:i[1]])
 
@@ -198,10 +248,12 @@ def analyzeFile(content, df):
             part = part.replace('<b>P R E S E N T A T I O N</b>', '')
             part = part.replace('<b>Q U E S T I O N S   A N D   A N S W E R S</b>', '')
             speeches = getSpeeches(part)
-            saveSpeeches(speeches,tp,date,name)
+            saveSpeeches(speeches,tp,date,name,comp)
             tp += 1
-            
-    return df
+
+        
+        df.to_csv(genFileName(out_folder+folder+"/",name+".csv"),encoding='utf-8-sig')    
+
 
 if __name__ == "__main__":
     count = 1
@@ -209,10 +261,12 @@ if __name__ == "__main__":
         for file in filenames:
             if "s.html" in file:
                 print("{} - {}".format(str(count),file))
-                df = pd.DataFrame(columns=["RPT","Date","Title","Speacker","Provenance","Role","Is Q&A","Is Presentation","Content"])
+                outf = file.replace("s.html",'')
+                os.mkdir(out_folder+outf)
                 file_path = path.join(dirpath,file)
                 with open(file_path, 'r', encoding="utf8", errors='ignore') as f:
                     content = f.read()
-                df = analyzeFile(content,df)
-                df.to_csv(out_folder+file.replace("s.html",'')+".csv",encoding='utf-8-sig')
+                    content = content.replace("<b>QUESTIONS AND ANSWERS<br>","'<b>Q U E S T I O N S   A N D   A N S W E R S</b><br>'\n<b>")
+                analyzeFile(content,outf)
                 count += 1
+    print("Done!")
