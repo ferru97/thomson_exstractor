@@ -10,3 +10,5 @@ Convert THOMSON REUTERS STREETEVENTS reports from PDF to CSV
 - Only the first time, open the CMD in the script folder and run `pip install -r requirements.txt` to install the requirements
 - To run the script, open the CMD in the script folder and run `py main.py`
 - The results are saved in *results/*
+
+**Remember to empty the *resources* folder before running the script**
