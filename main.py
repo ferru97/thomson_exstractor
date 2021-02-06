@@ -262,7 +262,8 @@ if __name__ == "__main__":
             if "s.html" in file:
                 print("{} - {}".format(str(count),file))
                 outf = file.replace("s.html",'')
-                os.mkdir(out_folder+outf)
+                if not os.path.isdir(out_folder+outf):
+                    os.mkdir(out_folder+outf)
                 file_path = path.join(dirpath,file)
                 with open(file_path, 'r', encoding="utf8", errors='ignore') as f:
                     content = f.read()
