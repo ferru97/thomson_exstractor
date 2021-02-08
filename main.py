@@ -66,10 +66,13 @@ def getName(page):
     title =  (page.split('\n'))[1]
     soup = BeautifulSoup(title, 'html.parser')
     title = soup.text
+    date = ""
+    name = ""
 
     title = title.split('-')
-    date = title[0].strip()
-    name = title[1].strip()
+    if len(title)>1:
+        date = title[0].strip()
+        name = title[1].strip()
 
     return date, name
 
@@ -268,6 +271,7 @@ if __name__ == "__main__":
                 with open(file_path, 'r', encoding="utf8", errors='ignore') as f:
                     content = f.read()
                     content = content.replace("<b>QUESTIONS AND ANSWERS<br>","'<b>Q U E S T I O N S   A N D   A N S W E R S</b><br>'\n<b>")
+                    content = re.sub('<IMG src=".*"><br>\nPRELIMINARY<br>\n',"",content)
                 analyzeFile(content,outf)
                 count += 1
     print("Done!")
