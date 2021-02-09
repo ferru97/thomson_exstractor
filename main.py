@@ -162,7 +162,7 @@ def genFileName(location,name):
     name = re.sub('[^-a-zA-Z0-9_.() ]+', '', name)
     out = location+name
 
-    while(len(out)>250):
+    while(len(out)>240):
         name = name[:-1]
         out = location+name
 
