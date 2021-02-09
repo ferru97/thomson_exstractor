@@ -66,10 +66,13 @@ def getName(page):
     title =  (page.split('\n'))[1]
     soup = BeautifulSoup(title, 'html.parser')
     title = soup.text
+    date = ""
+    name = ""
 
     title = title.split('-')
-    date = title[0].strip()
-    name = title[1].strip()
+    if len(title)>1:
+        date = title[0].strip()
+        name = title[1].strip()
 
     return date, name
 
@@ -129,7 +132,7 @@ def getSpeeches(speech):
     
     speackers = removeDuplicate(speackers)
     speackers.sort(key = lambda x: x[1])
-    
+
     result = []
     i = 0
     while i < len(speackers):
@@ -189,9 +192,15 @@ def analyzeFile(content, folder):
         if tp == 0:
             isPresentation = True
             isQeA = False
-        else:
+            isTranscript = False
+        elif tp==1:
             isPresentation = False
             isQeA = True
+            isTranscript = False
+        else:
+            isPresentation = False
+            isQeA = False
+            isTranscript = True
 
         for s in speeches:
             new_row = len(df.index)
@@ -205,6 +214,7 @@ def analyzeFile(content, folder):
             df.loc[new_row,"Role"] = s[2]
             df.loc[new_row,"Is Q&A"] = isQeA
             df.loc[new_row,"Is Presentation"] = isPresentation
+            df.loc[new_row,"Is Transcript"] = isTranscript
             df.loc[new_row,"Content"] = s[3]
 
     index = getIndex(content)
@@ -220,13 +230,15 @@ def analyzeFile(content, folder):
     content = removeDisclaimer(content)
 
     for i,rpt,comp in zip(index,rpts,companies):
-        df = pd.DataFrame(columns=["RPT","Company","Date","Time","Title","Speacker","Provenance","Role","Is Q&A","Is Presentation","Content"])
+        df = pd.DataFrame(columns=["RPT","Company","Date","Time","Title","Speacker","Provenance","Role","Is Q&A","Is Presentation","Is Transcript","Content"])
         date, name = getName(content[i[0]+1])
         speech = " ".join(content[i[0]:i[1]])
 
         start_presentation = speech.find("<b>P R E S E N T A T I O N</b>")
         start_qa = speech.find("<b>Q U E S T I O N S   A N D   A N S W E R S</b>")
+        start_transcript = speech.find("<b>T R A N S C R I P T</b><br>")
         end_qa = len(speech) 
+        
         if start_qa>start_presentation:
             end_presentation = start_qa-1
         else:
@@ -242,8 +254,13 @@ def analyzeFile(content, folder):
         else:
             qa = None
 
+        if qa==None and presentation==None and start_transcript>0:
+            transcript = speech[start_transcript:len(speech)]
+        else:
+            transcript = None
+
         tp = 0
-        for part in [presentation,qa]:
+        for part in [presentation,qa,transcript]:
             if part==None:
                 continue
             part = part.replace('<b>P R E S E N T A T I O N</b>', '')
@@ -263,11 +280,16 @@ if __name__ == "__main__":
             if "s.html" in file:
                 print("{} - {}".format(str(count),file))
                 outf = file.replace("s.html",'')
-                os.mkdir(out_folder+outf)
+                if not os.path.isdir(out_folder+outf):
+                    os.mkdir(out_folder+outf)
                 file_path = path.join(dirpath,file)
                 with open(file_path, 'r', encoding="utf8", errors='ignore') as f:
                     content = f.read()
                     content = content.replace("<b>QUESTIONS AND ANSWERS<br>","'<b>Q U E S T I O N S   A N D   A N S W E R S</b><br>'\n<b>")
+                    content = re.sub('<IMG src=".*"><br>\nPRELIMINARY<br>\n',"",content)
+                    content = re.sub('\*</b>',"</b>",content)
+                    content = content.replace("&amp;","&")
+                    content = content.replace(";","")
                 analyzeFile(content,outf)
                 count += 1
     print("Done!")
