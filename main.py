@@ -162,9 +162,12 @@ def genFileName(location,name):
     name = re.sub('[^-a-zA-Z0-9_.() ]+', '', name)
     out = location+name
 
-    while(len(out)>150):
-        name = name[:-1]
-        out = location+name
+    if len(out)>150:
+        name = name[:-4]
+        while(len(out)>150):
+            name = name[:-1]
+            out = location+name
+        name += ".csv"
 
     n = 1
     while path.exists(out):
