@@ -46,7 +46,7 @@ def getIndex(content):
         temp = re.sub(r'<A href=".*">', '', l)
         temp = re.sub(r'</a>', '', temp)
         temp = temp.split('-')
-        index.append( (int(temp[0].strip()),int(temp[1].strip())-1) )
+        index.append( (int(temp[0].strip()),int(temp[1].strip())) )
 
     if len(index)>0:
         return index
@@ -144,8 +144,8 @@ def getSpeeches(speech):
         
         temp = speech[speech_start:speech_end]
         temp = re.sub(r'<A name=.*<br>', '',  temp) #remove header
-        temp = re.sub(r'\d+<br>\nTHOMSON(.|\n)+<i>\d+</i><br>', '',  temp) #remove footer
-        temp = re.sub(r'\d+<br>\n(<A.*>)?THOMSON(.|\n)+companies.<br>', '',  temp) #remove footer v2
+        temp = re.sub(r'\d+\s*<br>\nTHOMSON(.|\n)+<i>\d+<\/i><br>', '',  temp) #remove footer
+        temp = re.sub(r'\d+\s*<br>\n(<A.*>)?THOMSON(.|\n)+companies.<br>', '',  temp) #remove footer v2
         
         rows = temp.split('\n')
         if len(rows)>1 and len(rows[1])>5 and not haveTitle(rows[1]):
@@ -161,6 +161,11 @@ def genFileName(location,name):
     name = name.replace('/','')
     name = re.sub('[^-a-zA-Z0-9_.() ]+', '', name)
     out = location+name
+
+    while(len(out)>250):
+        name = name[:-1]
+        out = location+name
+
     n = 1
     while path.exists(out):
        n += 1
@@ -269,9 +274,7 @@ def analyzeFile(content, folder):
             saveSpeeches(speeches,tp,date,name,comp)
             tp += 1
 
-        
-        df.to_csv(genFileName(out_folder+folder+"/",name+".csv"),encoding='utf-8-sig')    
-
+        df.to_csv(genFileName(out_folder+folder+"/",name+".csv"),encoding='utf-8-sig')
 
 if __name__ == "__main__":
     count = 1
