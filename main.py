@@ -156,11 +156,12 @@ def getSpeeches(speech):
 
 def genFileName(location,name):
     name = name.replace('/','')
-    out = location+"/"+name
+    name = re.sub('[^-a-zA-Z0-9_.() ]+', '', name)
+    out = location+name
     n = 1
     while path.exists(out):
        n += 1
-       out = location+"/("+str(n)+')'+name
+       out = location+"("+str(n)+')'+name
     return out
 
 def analyzeFile(content, folder):
