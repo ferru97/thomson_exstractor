@@ -159,6 +159,7 @@ def getSpeeches(speech):
 
 def genFileName(location,name):
     name = name.replace('/','')
+    name = re.sub('[^-a-zA-Z0-9_.() ]+', '', name)
     out = location+"/"+name
     n = 1
     while path.exists(out):
