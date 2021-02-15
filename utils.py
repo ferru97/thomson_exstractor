@@ -113,6 +113,10 @@ def getDateTimeType(date):
 
     return day,time,_type
 
+footer_msg = "THOMSON REUTERS STREETEVENTS | www.streetevents.com | Contact Us 2013 Thomson Reuters. All rights reserved. Republication or redistribution of Thomson Reuters content, including by framing or similar means, is prohibited withoutthe prior written consent of Thomson Reuters. 'Thomson Reuters' and the Thomson Reuters logo are registered trademarks of Thomson Reuters and its affiliatedcompanies."
+def removeFooter(content):
+    content =  re.sub(r'\d+\s*'+footer_msg+r'\s*\d+', '',  content)
+    return content.replace("||","")
 
 def saveSpeeches(speeches,speech_type,date,name,company,rpt,df):
     
@@ -144,5 +148,5 @@ def saveSpeeches(speeches,speech_type,date,name,company,rpt,df):
         df.loc[new_row,"Is Q&A"] = isQeA
         df.loc[new_row,"Is Presentation"] = isPresentation
         df.loc[new_row,"Is Transcript"] = isTranscript
-        df.loc[new_row,"Content"] = s[3]
+        df.loc[new_row,"Content"] = removeFooter(s[3])
         df.loc[new_row,"Type"] = _type

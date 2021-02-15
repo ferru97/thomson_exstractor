@@ -90,9 +90,9 @@ def getSpeeches(speech):
         
         temp = speech[speech_start:speech_end]
         temp = re.sub(r'<A name=.*<br>', '',  temp) #remove header
-        temp = re.sub(r'\d+\s*<br>\nTHOMSON(.|\n)+<i>\d+<\/i><br>', '',  temp) #remove footer
-        temp = re.sub(r'\d+\s*<br>\n(<A.*>)?THOMSON(.|\n)+companies.<br>', '',  temp) #remove footer v2
-        
+        #temp = re.sub(r'\d+\s*<br>(.|\n)+THOMSON REUTERS STREETEVENTS(.|\n)+<\/i><br>', '',  temp) #remove footer
+        #temp = re.sub(r'\d+\s*<br>(.|\n)+(<A.*>)?THOMSON REUTERS STREETEVENTS(.|\n)+<\/i><br>', '',  temp) #remove footer v2
+
         rows = temp.split('\n')
         if len(rows)>1 and len(rows[1])>5 and not haveTitle(rows[1]):
             name, provenance, role = getNameAndPosition(rows[0])
