@@ -3,38 +3,10 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import re
 import os
+from utils import isPersonName, removeDisclaimer, haveTitle, removeDuplicate, genFileName, saveSpeeches
 
 imput_folder = "input/"
 out_folder = "results/"
-
-MonthDict={ "january":1,
-            "february":2,
-            "march":3,
-            "april":4,
-            "may":5,
-            "june":6,
-            "july":7,
-            "august":8,
-            "september":9,
-            "october":10,
-            "november":11,
-            "december":12
-}
-
-def isPersonName(name):
-    soup = BeautifulSoup(name, 'html.parser')
-    name = soup.text.strip()
-    uppers = sum(1 for c in name if c.isupper())
-    upper_prc = (100/len(name.replace(" ",'')))*uppers
-
-    if not name[0].isupper():
-        return False
-    if len(name)<4:
-        return False
-    if upper_prc>30:
-        return False
-    
-    return True
     
 
 def getIndex(content):
@@ -54,20 +26,13 @@ def getIndex(content):
         return [(0,len(content))]
 
 
-def removeDisclaimer(pages):
-    c = 0
-    while(c<len(pages)):
-         pages[c] = re.sub(r'<b>D I S C L A I M E R<\/b>(.|\n)*', '',  pages[c])
-         pages[c] = re.sub(r'<A name="outline"></a><h1>Document Outline</h1>(.|\n)*</ul>','',pages[c])
-         c += 1
-    return pages
-
-def getName(page):
+def getNameDate(page):
     title =  (page.split('\n'))[1]
     soup = BeautifulSoup(title, 'html.parser')
     title = soup.text
     date = ""
     name = ""
+    _type = "" 
 
     title = title.split('-')
     if len(title)>1:
@@ -75,15 +40,6 @@ def getName(page):
         name = title[1].strip()
 
     return date, name
-
-
-def haveTitle(s):
-    soup = BeautifulSoup(s, 'html.parser')
-    txt = soup.text.strip()
-    uppers = sum(1 for c in txt if c.isupper())
-    upper_prc = (100/len(txt.replace(" ",'')))*uppers
-    
-    return upper_prc>30
 
 
 def getNameAndPosition(line):
@@ -111,16 +67,6 @@ def getText(speech):
 
 
 def getSpeeches(speech):
-    def removeDuplicate(l):
-        newSpeackers = []
-        dict_ = {}
-        for e in l:
-            k = e[0]+str(e[1])
-            if not k in dict_:
-                newSpeackers.append(e)
-                dict_[k] = True
-        return newSpeackers
-
     regex = r'<b>.*<\/b>'
     possible_speackers = re.findall(regex, speech)
     speackers = []
@@ -157,74 +103,7 @@ def getSpeeches(speech):
     return result
 
 
-def genFileName(location,name):
-    name = name.replace('/','')
-    name = re.sub('[^-a-zA-Z0-9_.() ]+', '', name)
-    out = location+name
-
-    if len(out)>150:
-        name = name[:-4]
-        while(len(out)>150):
-            name = name[:-1]
-            out = location+name
-        name += ".csv"
-
-    n = 1
-    while path.exists(out):
-       n += 1
-       out = location+"("+str(n)+')'+name
-    return out
-
 def analyzeFile(content, folder):
-    def saveSpeeches(speeches, type,date,name,company):
-        date = date.split('/')
-        day = date[0]
-
-        try:
-            temp = day.replace(',','').split(" ")
-            m = str(MonthDict[temp[0].lower()])
-            d = temp[1]
-            y = temp[2]
-            if len(m)==1:
-                m = '0'+m
-            if len(d)==1:
-                d = '0'+d
-            day = m+"/"+d+"/"+y
-        except:
-            pass
-
-        time = "NA"
-        if len(date)>1:
-            time = date[1]
-
-        if tp == 0:
-            isPresentation = True
-            isQeA = False
-            isTranscript = False
-        elif tp==1:
-            isPresentation = False
-            isQeA = True
-            isTranscript = False
-        else:
-            isPresentation = False
-            isQeA = False
-            isTranscript = True
-
-        for s in speeches:
-            new_row = len(df.index)
-            df.loc[new_row,"RPT"] = rpt.replace("Rpt. ",'')
-            df.loc[new_row,"Company"] = company
-            df.loc[new_row,"Date"] = day
-            df.loc[new_row,"Time"] = time
-            df.loc[new_row,"Title"] = name
-            df.loc[new_row,"Speacker"] = s[0]
-            df.loc[new_row,"Provenance"] = s[1]
-            df.loc[new_row,"Role"] = s[2]
-            df.loc[new_row,"Is Q&A"] = isQeA
-            df.loc[new_row,"Is Presentation"] = isPresentation
-            df.loc[new_row,"Is Transcript"] = isTranscript
-            df.loc[new_row,"Content"] = s[3]
-
     index = getIndex(content)
     if len(index) == 1:
         rpts = ["NA"]
@@ -238,8 +117,8 @@ def analyzeFile(content, folder):
     content = removeDisclaimer(content)
 
     for i,rpt,comp in zip(index,rpts,companies):
-        df = pd.DataFrame(columns=["RPT","Company","Date","Time","Title","Speacker","Provenance","Role","Is Q&A","Is Presentation","Is Transcript","Content"])
-        date, name = getName(content[i[0]+1])
+        df = pd.DataFrame(columns=["RPT","Company","Date","Time","Type","Title","Speacker","Provenance","Role","Is Q&A","Is Presentation","Is Transcript","Content"])
+        date, name = getNameDate(content[i[0]+1])
         speech = " ".join(content[i[0]:i[1]])
 
         start_presentation = speech.find("<b>P R E S E N T A T I O N</b>")
@@ -274,10 +153,11 @@ def analyzeFile(content, folder):
             part = part.replace('<b>P R E S E N T A T I O N</b>', '')
             part = part.replace('<b>Q U E S T I O N S   A N D   A N S W E R S</b>', '')
             speeches = getSpeeches(part)
-            saveSpeeches(speeches,tp,date,name,comp)
+            saveSpeeches(speeches,tp,date,name,comp,rpt,df)
             tp += 1
 
         df.to_csv(genFileName(out_folder+folder+"/",name+".csv"),encoding='utf-8-sig')
+
 
 if __name__ == "__main__":
     count = 1
@@ -292,6 +172,8 @@ if __name__ == "__main__":
                 with open(file_path, 'r', encoding="utf8", errors='ignore') as f:
                     content = f.read()
                     content = content.replace("<b>QUESTIONS AND ANSWERS<br>","'<b>Q U E S T I O N S   A N D   A N S W E R S</b><br>'\n<b>")
+                    content = content.replace("<b>QUESTIONS AND ANSWERS</b>","'<b>Q U E S T I O N S   A N D   A N S W E R S</b>")
+                    content = content.replace("<b>PRESENTATION</b>","<b>P R E S E N T A T I O N</b>")
                     content = re.sub('<IMG src=".*"><br>\nPRELIMINARY<br>\n',"",content)
                     content = re.sub('\*</b>',"</b>",content)
                     content = content.replace("&amp;","&")
