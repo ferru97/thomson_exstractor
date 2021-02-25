@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import re
 import os
-from utils import isPersonName, removeDisclaimer, haveTitle, removeDuplicate, genFileName, saveSpeeches, removeFooter
+from utils import isPersonName, removeDisclaimer, haveTitle, removeDuplicate, genFileName, saveSpeeches, removeFooter,find_all
 
 imput_folder = "input/"
 out_folder = "results/"
@@ -72,7 +72,8 @@ def getSpeeches(speech):
     speackers = []
     for s in possible_speackers:
         if(isPersonName(s)):
-            speacker_pos = [m.start() for m in re.finditer(s, speech)]
+            #speacker_pos = [m.start() for m in re.finditer(s, speech)]
+            speacker_pos = find_all(speech,s)
             for p in speacker_pos:
                 speackers.append((s,p))
     
