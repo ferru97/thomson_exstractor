@@ -20,7 +20,7 @@ MonthDict={ "january":1,
 
 def isPersonName(name):
     soup = BeautifulSoup(name, 'html.parser')
-    name = soup.text.strip()
+    name = soup.text.strip().replace(">",'')
     uppers = sum(1 for c in name if c.isupper())
     upper_prc = (100/len(name.replace(" ",'')))*uppers
 
@@ -113,9 +113,8 @@ def getDateTimeType(date):
 
     return day,time,_type
 
-footer_msg = "THOMSON REUTERS STREETEVENTS | www.streetevents.com | Contact Us 2013 Thomson Reuters. All rights reserved. Republication or redistribution of Thomson Reuters content, including by framing or similar means, is prohibited withoutthe prior written consent of Thomson Reuters. 'Thomson Reuters' and the Thomson Reuters logo are registered trademarks of Thomson Reuters and its affiliatedcompanies."
 def removeFooter(content):
-    content =  re.sub(r'\d+\s*'+footer_msg+r'\s*\d+', '',  content)
+    content =  re.sub(r'\d+<br>\n[^"]+<\/i>', '',  content)
     return content.replace("||","")
 
 def saveSpeeches(speeches,speech_type,date,name,company,rpt,df):
@@ -134,6 +133,7 @@ def saveSpeeches(speeches,speech_type,date,name,company,rpt,df):
         isPresentation = False
         isQeA = False
         isTranscript = True
+   
 
     for s in speeches:
         new_row = len(df.index)
@@ -148,5 +148,5 @@ def saveSpeeches(speeches,speech_type,date,name,company,rpt,df):
         df.loc[new_row,"Is Q&A"] = isQeA
         df.loc[new_row,"Is Presentation"] = isPresentation
         df.loc[new_row,"Is Transcript"] = isTranscript
-        df.loc[new_row,"Content"] = removeFooter(s[3])
+        df.loc[new_row,"Content"] = s[3]
         df.loc[new_row,"Type"] = _type

@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import re
 import os
-from utils import isPersonName, removeDisclaimer, haveTitle, removeDuplicate, genFileName, saveSpeeches
+from utils import isPersonName, removeDisclaimer, haveTitle, removeDuplicate, genFileName, saveSpeeches, removeFooter
 
 imput_folder = "input/"
 out_folder = "results/"
@@ -90,6 +90,7 @@ def getSpeeches(speech):
         
         temp = speech[speech_start:speech_end]
         temp = re.sub(r'<A name=.*<br>', '',  temp) #remove header
+        temp = removeFooter(temp) #remove footer
         #temp = re.sub(r'\d+\s*<br>(.|\n)+THOMSON REUTERS STREETEVENTS(.|\n)+<\/i><br>', '',  temp) #remove footer
         #temp = re.sub(r'\d+\s*<br>(.|\n)+(<A.*>)?THOMSON REUTERS STREETEVENTS(.|\n)+<\/i><br>', '',  temp) #remove footer v2
 
@@ -171,6 +172,7 @@ if __name__ == "__main__":
                 file_path = path.join(dirpath,file)
                 with open(file_path, 'r', encoding="utf8", errors='ignore') as f:
                     content = f.read()
+                    content = re.sub(r'&[^\s]+;', '',  content)
                     content = content.replace("<b>QUESTIONS AND ANSWERS<br>","'<b>Q U E S T I O N S   A N D   A N S W E R S</b><br>'\n<b>")
                     content = content.replace("<b>QUESTIONS AND ANSWERS</b>","'<b>Q U E S T I O N S   A N D   A N S W E R S</b>")
                     content = content.replace("<b>PRESENTATION</b>","<b>P R E S E N T A T I O N</b>")
