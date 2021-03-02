@@ -30,6 +30,9 @@ def isPersonName(name):
     soup = BeautifulSoup(name, 'html.parser')
     name = soup.text.strip().replace(">",'')
     uppers = sum(1 for c in name if c.isupper())
+    if len(name.replace(" ",''))<1:
+        return False
+
     upper_prc = (100/len(name.replace(" ",'')))*uppers
 
     if not name[0].isupper():
